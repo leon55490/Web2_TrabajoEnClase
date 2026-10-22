@@ -1,0 +1,27 @@
+{
+	"name": "campuseats",
+	"version": "1.0.0",
+	"description": "",
+	"main": "index.js",
+	"scripts": {
+		"start": "node src/server.js",
+		"dev": "nodemon src/server.js",
+		"postinstall": "prisma generate"
+	},
+	"keywords": [],
+	"author": "",
+	"license": "ISC",
+	"type": "module",
+	"dependencies": {
+		"@prisma/adapter-pg": "7.10.0",
+		"@prisma/client": "7.10.0",
+		"dotenv": "17.4.2",
+		"express": "^5.2.1",
+		"express-validator": "^7.3.2",
+		"morgan": "^1.12.1"
+	},
+	"devDependencies": {
+		"nodemon": "^3.1.14",
+		"prisma": "7.10.0"
+	}
+}

@@ -1,0 +1,55 @@
+// Datos de arranque de CampusEats. Se puede ejecutar varias veces.
+import { prisma } from '../src/db.js';
+
+async function main() {
+	await prisma.usuario.upsert({
+		where: { email: 'admin@campuseats.co' },
+		update: {},
+		create: {
+			nombre: 'Admin Cafetería',
+			email: 'admin@campuseats.co',
+			passwordHash: 'TODO-semana-8',
+			rol: 'ADMIN',
+		},
+	});
+
+	await prisma.usuario.upsert({
+		where: { email: 'ana@ucaldas.edu.co' },
+		update: {},
+		create: {
+			nombre: 'Ana Estudiante',
+			email: 'ana@ucaldas.edu.co',
+			passwordHash: 'TODO-semana-8',
+			rol: 'CLIENTE',
+		},
+	});
+
+	const productos = [
+		{ nombre: 'Almuerzo del día', precio: 12000, stock: 25, categoria: 'Almuerzos' },
+		{ nombre: 'Jugo natural', precio: 4000, stock: 50, categoria: 'Bebidas' },
+		{ nombre: 'Café campesino', precio: 2500, stock: 100, categoria: 'Bebidas' },
+		{ nombre: 'Empanada', precio: 2000, stock: 40, categoria: 'Snacks' },
+		{ nombre: 'Sandwich de pollo', precio: 9500, stock: 15, categoria: 'Almuerzos' },
+	];
+
+	for (const producto of productos) {
+		await prisma.producto.upsert({
+			where: { nombre: producto.nombre },
+			update: {
+				precio: producto.precio,
+				stock: producto.stock,
+				categoria: producto.categoria,
+			},
+			create: producto,
+		});
+	}
+
+	console.log('Seed completado: 2 usuarios y 5 productos');
+}
+
+main()
+	.catch((error) => {
+		console.error(error);
+		process.exitCode = 1;
+	})
+	.finally(() => prisma.$disconnect());
