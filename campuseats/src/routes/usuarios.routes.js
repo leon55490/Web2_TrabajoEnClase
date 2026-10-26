@@ -1,9 +1,12 @@
 import { Router } from 'express';
 import { body, param } from 'express-validator';
 import * as controlador from '../controllers/usuarios.controller.js';
+import { autenticar, permitirRoles } from '../middlewares/auth.js';
 import { validar } from '../middlewares/validar.js';
 
 const router = Router();
+
+router.use(autenticar, permitirRoles('ADMIN'));
 
 router.get('/', controlador.listar);
 router.get(
@@ -18,7 +21,7 @@ router.post(
 	body('email').isEmail().withMessage('El email no es válido'),
 	body('password')
 		.isString()
-		.isLength({ min: 1 })
+		.isLength({ min: 8 })
 		.withMessage('La contraseña es obligatoria'),
 	body('rol').optional().isIn(['CLIENTE', 'ADMIN']).withMessage('El rol no es válido'),
 	validar,

@@ -1,13 +1,13 @@
-// src/routes/productos.routes.js
-// Mapa de URLs: qué método+ruta ejecuta qué controller.
+// src/routes/productos.routes.js — versión protegida
+// El requiereApiKey de la semana 4 se va: ahora el portero es el token
 import { Router } from 'express';
 import { body, param, query } from 'express-validator';
 import * as controlador from '../controllers/productos.controller.js';
+import { autenticar, permitirRoles } from '../middlewares/auth.js';
 import { validar } from '../middlewares/validar.js';
 
 const router = Router();
 
-// Reglas reutilizables para crear/actualizar
 const reglasProducto = [
 	body('nombre')
 		.trim()
@@ -22,14 +22,10 @@ const reglasProducto = [
 		.withMessage('El stock debe ser un entero ≥ 0'),
 ];
 
+// Leer el menú: público
 router.get(
 	'/',
 	query('pagina').optional().isInt({ min: 1 }).withMessage('pagina debe ser ≥ 1'),
-	query('buscar')
-		.optional()
-		.trim()
-		.isLength({ max: 80 })
-		.withMessage('buscar debe tener máximo 80 caracteres'),
 	validar,
 	controlador.listar
 );
@@ -41,21 +37,43 @@ router.get(
 	controlador.obtener
 );
 
-router.post('/', reglasProducto, validar, controlador.crearProducto);
+// Gestionar productos: solo ADMIN autenticado (autenticar SIEMPRE antes de permitirRoles)
+router.post(
+	'/',
+	autenticar,
+	permitirRoles('ADMIN'),
+	reglasProducto,
+	validar,
+	controlador.crearProducto
+);
+
 router.put(
 	'/:id',
+	autenticar,
+	permitirRoles('ADMIN'),
 	param('id').isInt({ min: 1 }),
 	reglasProducto,
 	validar,
 	controlador.actualizar
 );
+
 router.patch(
 	'/:id/stock',
+	autenticar,
+	permitirRoles('ADMIN'),
 	param('id').isInt({ min: 1 }).withMessage('El id debe ser un entero positivo'),
-	body('delta').isInt().withMessage('delta debe ser un entero'),
+	body('delta').isInt().withMessage('delta debe ser un entero').toInt(),
 	validar,
 	controlador.ajustarStock
 );
-router.delete('/:id', param('id').isInt({ min: 1 }), validar, controlador.eliminar);
+
+router.delete(
+	'/:id',
+	autenticar,
+	permitirRoles('ADMIN'),
+	param('id').isInt({ min: 1 }),
+	validar,
+	controlador.eliminar
+);
 
 export default router;

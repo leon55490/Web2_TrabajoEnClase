@@ -1,25 +1,29 @@
 // Datos de arranque de CampusEats. Se puede ejecutar varias veces.
+import bcrypt from 'bcrypt';
 import { prisma } from '../src/db.js';
 
 async function main() {
+	const passwordAdmin = await bcrypt.hash('Admin123!', 10);
+	const passwordCliente = await bcrypt.hash('Cliente123!', 10);
+
 	await prisma.usuario.upsert({
 		where: { email: 'admin@campuseats.co' },
-		update: {},
+		update: { passwordHash: passwordAdmin, rol: 'ADMIN' },
 		create: {
 			nombre: 'Admin Cafetería',
 			email: 'admin@campuseats.co',
-			passwordHash: 'TODO-semana-8',
+			passwordHash: passwordAdmin,
 			rol: 'ADMIN',
 		},
 	});
 
 	await prisma.usuario.upsert({
 		where: { email: 'ana@ucaldas.edu.co' },
-		update: {},
+		update: { passwordHash: passwordCliente, rol: 'CLIENTE' },
 		create: {
 			nombre: 'Ana Estudiante',
 			email: 'ana@ucaldas.edu.co',
-			passwordHash: 'TODO-semana-8',
+			passwordHash: passwordCliente,
 			rol: 'CLIENTE',
 		},
 	});

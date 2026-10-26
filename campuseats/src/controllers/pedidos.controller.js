@@ -3,8 +3,7 @@ import * as servicio from '../services/pedidos.service.js';
 
 export async function crear(req, res, next) {
 	try {
-		// TODO semana 8: el usuarioId saldrá del token, no del body
-		const pedido = await servicio.crearPedido(req.body.usuarioId, req.body.items);
+		const pedido = await servicio.crearPedido(req.usuario.id, req.body.items);
 		res.status(201).json(pedido);
 	} catch (error) {
 		next(error);
@@ -42,6 +41,5 @@ export async function cambiarEstado(req, res, next) {
 		next(error);
 	}
 }
-
 
 
