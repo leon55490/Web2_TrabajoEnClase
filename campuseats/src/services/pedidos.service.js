@@ -2,6 +2,8 @@
 // Capa de negocio de pedidos. NO conoce req, res ni códigos HTTP.
 import { prisma } from '../db.js';
 import { conflicto, noEncontrado } from '../errores.js';
+import { enviarConfirmacionPedido } from './email.service.js';
+import { enviarSms } from './sms/index.js';
 
 // Qué relaciones acompañan a un pedido al leerlo.
 // El usuario va SIEMPRE con select: el passwordHash nunca sale en una respuesta.
@@ -44,7 +46,7 @@ export async function listarPedidos({ estado, pagina, porPagina, desde }) {
 // items llega como [{ productoId: 1, cantidad: 2 }, ...]
 export async function crearPedido(usuarioId, items) {
 	// $transaction con una función: todo lo que use "tx" se confirma junto o no se confirma
-	return prisma.$transaction(async (tx) => {
+	const pedido = await prisma.$transaction(async (tx) => {
 		const usuario = await tx.usuario.findUnique({ where: { id: usuarioId } });
 		if (!usuario) throw noEncontrado(`Usuario ${usuarioId} no existe`);
 
@@ -62,7 +64,9 @@ export async function crearPedido(usuarioId, items) {
 			});
 			if (count === 0) {
 				// Este throw aborta la transacción completa: ROLLBACK automático
-				throw conflicto(`Stock insuficiente de "${producto.nombre}": se piden ${item.cantidad}`);
+				throw conflicto(
+					`Stock insuficiente de "${producto.nombre}": se piden ${item.cantidad}`
+				);
 			}
 
 			total += producto.precio * item.cantidad; // el precio sale de la base, nunca del request
@@ -76,20 +80,40 @@ export async function crearPedido(usuarioId, items) {
 		// El pedido y sus items en una sola escritura anidada
 		return tx.pedido.create({
 			data: { usuarioId, total, items: { create: itemsParaCrear } },
-			include: { items: true },
+			include: {
+				usuario: { select: { nombre: true, email: true } },
+				items: { include: { producto: { select: { nombre: true } } } },
+			},
 		});
 	});
+
+	// El correo se dispara después del commit y no bloquea la creación del pedido.
+	enviarConfirmacionPedido(pedido.usuario.email, pedido).catch((err) => {
+		console.error('No se pudo enviar el email de confirmación:', err.message || err.code);
+	});
+
+	return pedido;
 }
 
-// Regla de negocio: un pedido ENTREGADO o CANCELADO ya no cambia
 const ESTADOS_FINALES = ['ENTREGADO', 'CANCELADO'];
 
 export async function cambiarEstado(id, estado) {
-	const pedido = await prisma.pedido.findUnique({ where: { id } });
+	const pedido = await prisma.pedido.findUnique({
+		where: { id },
+		include: { usuario: { select: { telefono: true } } },
+	});
 	if (!pedido) throw noEncontrado('Pedido no encontrado');
 	if (ESTADOS_FINALES.includes(pedido.estado)) {
 		throw conflicto(`Un pedido ${pedido.estado} ya no puede cambiar de estado`);
 	}
-	return prisma.pedido.update({ where: { id }, data: { estado } });
-}
+	const actualizado = await prisma.pedido.update({ where: { id }, data: { estado } });
 
+	if (estado === 'LISTO' && pedido.usuario.telefono) {
+		enviarSms(
+			pedido.usuario.telefono,
+			`CampusEats: tu pedido #${id} está listo para recoger`
+		).catch((err) => console.error('No se pudo enviar el SMS:', err.message));
+	}
+
+	return actualizado;
+}

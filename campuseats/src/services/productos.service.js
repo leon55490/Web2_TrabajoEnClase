@@ -26,19 +26,30 @@ export async function crear({
 	descripcion,
 	categoria,
 	disponible,
+	imagenUrl,
 }) {
 	const duplicado = await prisma.producto.findUnique({ where: { nombre } });
 	if (duplicado) {
 		throw conflicto(`Ya existe un producto llamado "${nombre}"`);
 	}
 	return prisma.producto.create({
-		data: { nombre, precio, stock, descripcion, categoria, disponible },
+		data: { nombre, precio, stock, descripcion, categoria, disponible, imagenUrl },
 	});
 }
 
 export async function actualizar(id, cambios) {
 	await buscarPorId(id);
 	return prisma.producto.update({ where: { id }, data: cambios });
+}
+
+// La imagen se actualiza mediante una operación propia para no perderla
+// al reutilizar la actualización de campos del producto.
+export async function cambiarImagen(id, imagenUrl) {
+	await buscarPorId(id);
+	return prisma.producto.update({
+		where: { id },
+		data: { imagenUrl },
+	});
 }
 
 export async function ajustarStock(id, delta) {

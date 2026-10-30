@@ -19,6 +19,7 @@ app.use((req, res, next) => {
 });
 
 app.use(express.json());
+app.use('/imagenes/productos', express.static('uploads/productos'));
 
 app.get('/', (req, res) => res.json({ nombre: 'CampusEats API', version: '1.0' }));
 app.use('/api/productos', productosRouter);

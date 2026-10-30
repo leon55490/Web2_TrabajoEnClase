@@ -8,7 +8,7 @@ async function main() {
 
 	await prisma.usuario.upsert({
 		where: { email: 'admin@campuseats.co' },
-		update: { passwordHash: passwordAdmin, rol: 'ADMIN' },
+		update: { passwordHash: passwordAdmin, rol: 'ADMIN', telefono: null },
 		create: {
 			nombre: 'Admin Cafetería',
 			email: 'admin@campuseats.co',
@@ -19,10 +19,15 @@ async function main() {
 
 	await prisma.usuario.upsert({
 		where: { email: 'ana@ucaldas.edu.co' },
-		update: { passwordHash: passwordCliente, rol: 'CLIENTE' },
+		update: {
+			passwordHash: passwordCliente,
+			rol: 'CLIENTE',
+			telefono: '+573001234567',
+		},
 		create: {
 			nombre: 'Ana Estudiante',
 			email: 'ana@ucaldas.edu.co',
+			telefono: '+573001234567',
 			passwordHash: passwordCliente,
 			rol: 'CLIENTE',
 		},

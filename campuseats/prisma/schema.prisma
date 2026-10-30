@@ -24,6 +24,7 @@ model Usuario {
   id           Int      @id @default(autoincrement())
   nombre       String
   email        String   @unique
+  telefono     String?
   passwordHash String
   rol          Rol      @default(CLIENTE)
   creadoEn     DateTime @default(now())
@@ -38,6 +39,7 @@ model Producto {
   precio      Int
   stock       Int     @default(0)
   disponible  Boolean @default(true)
+  imagenUrl   String?
   items       PedidoItem[]
 }
 

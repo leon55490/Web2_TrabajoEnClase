@@ -24,7 +24,10 @@ export async function obtener(req, res, next) {
 
 export async function crearProducto(req, res, next) {
 	try {
-		const nuevo = await servicio.crear(req.body);
+		const nuevo = await servicio.crear({
+			...req.body,
+			imagenUrl: req.file ? `/imagenes/productos/${req.file.filename}` : undefined,
+		});
 		res.status(201).json(nuevo);
 	} catch (error) {
 		next(error);
@@ -33,7 +36,27 @@ export async function crearProducto(req, res, next) {
 
 export async function actualizar(req, res, next) {
 	try {
-		const producto = await servicio.actualizar(Number(req.params.id), req.body);
+		const producto = await servicio.actualizar(Number(req.params.id), {
+			...req.body,
+			...(req.file
+				? { imagenUrl: `/imagenes/productos/${req.file.filename}` }
+				: {}),
+		});
+		res.json(producto);
+	} catch (error) {
+		next(error);
+	}
+}
+
+export async function subirFoto(req, res, next) {
+	try {
+		if (!req.file) {
+			return res.status(400).json({ error: 'Adjunta un archivo en el campo "imagen"' });
+		}
+		const producto = await servicio.cambiarImagen(
+			Number(req.params.id),
+			`/imagenes/productos/${req.file.filename}`
+		);
 		res.json(producto);
 	} catch (error) {
 		next(error);
