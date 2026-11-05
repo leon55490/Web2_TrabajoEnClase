@@ -24,9 +24,24 @@ export async function listar(req, res, next) {
 	}
 }
 
+export async function listarMios(req, res, next) {
+	try {
+		const resultado = await servicio.listarPedidos({
+			usuarioId: req.usuario.id,
+			estado: req.query.estado,
+			pagina: Number(req.query.pagina) || 1,
+			porPagina: Number(req.query.porPagina) || 10,
+			desde: req.query.desde,
+		});
+		res.json(resultado);
+	} catch (error) {
+		next(error);
+	}
+}
+
 export async function obtener(req, res, next) {
 	try {
-		const pedido = await servicio.obtenerPedido(Number(req.params.id));
+		const pedido = await servicio.obtenerPedido(Number(req.params.id), req.usuario);
 		res.json(pedido);
 	} catch (error) {
 		next(error); // el 404 lo lanza el service
@@ -41,5 +56,3 @@ export async function cambiarEstado(req, res, next) {
 		next(error);
 	}
 }
-
-

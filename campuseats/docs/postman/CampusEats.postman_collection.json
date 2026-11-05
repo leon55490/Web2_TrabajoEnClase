@@ -1,0 +1,355 @@
+{
+  "info": {
+    "name": "CampusEats API (Semanas 5 a 9)",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{token}}",
+        "type": "string"
+      }
+    ]
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:4000",
+      "type": "string"
+    },
+    {
+      "key": "token",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Login ADMIN (guarda token)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "  pm.collectionVariables.set('token', pm.response.json().token);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"admin@campuseats.co\",\n  \"password\": \"Admin123!\"\n}"
+            },
+            "url": "{{base_url}}/api/auth/login"
+          }
+        },
+        {
+          "name": "Login CLIENTE Ana (guarda token)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "  pm.collectionVariables.set('token', pm.response.json().token);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"ana@ucaldas.edu.co\",\n  \"password\": \"Cliente123!\"\n}"
+            },
+            "url": "{{base_url}}/api/auth/login"
+          }
+        },
+        {
+          "name": "Registro de cliente",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nombre\": \"Carlos Pérez\",\n  \"email\": \"carlos@ucaldas.edu.co\",\n  \"password\": \"ClaveSegura123!\"\n}"
+            },
+            "url": "{{base_url}}/api/auth/registro"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Productos",
+      "item": [
+        {
+          "name": "Listar productos",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/api/productos"
+          }
+        },
+        {
+          "name": "Buscar productos (case-insensitive)",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/api/productos?buscar=JUGO&disponibles=true"
+          }
+        },
+        {
+          "name": "Ver producto por ID",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/api/productos/1"
+          }
+        },
+        {
+          "name": "Crear producto (ADMIN)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nombre\": \"Arepa con queso\",\n  \"precio\": 3500,\n  \"stock\": 15\n}"
+            },
+            "url": "{{base_url}}/api/productos"
+          }
+        },
+        {
+          "name": "Actualizar producto (ADMIN)",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nombre\": \"Almuerzo del día\",\n  \"precio\": 12500,\n  \"stock\": 30\n}"
+            },
+            "url": "{{base_url}}/api/productos/1"
+          }
+        },
+        {
+          "name": "Ajustar stock (ADMIN)",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"delta\": -3\n}"
+            },
+            "url": "{{base_url}}/api/productos/1/stock"
+          }
+        },
+        {
+          "name": "Eliminar producto (ADMIN)",
+          "request": {
+            "method": "DELETE",
+            "url": "{{base_url}}/api/productos/6"
+          }
+        },
+        {
+          "name": "Error 400 - Validación (nombre vacío / precio negativo)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nombre\": \"\",\n  \"precio\": -500\n}"
+            },
+            "url": "{{base_url}}/api/productos"
+          }
+        },
+        {
+          "name": "Error 404 - Producto no encontrado",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/api/productos/999"
+          }
+        },
+        {
+          "name": "Error 409 - Producto duplicado",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nombre\": \"Empanada\",\n  \"precio\": 2000\n}"
+            },
+            "url": "{{base_url}}/api/productos"
+          }
+        },
+        {
+          "name": "Error 400 - Content-Type incorrecto",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "text/plain" }],
+            "body": {
+              "mode": "raw",
+              "raw": "nombre=Empanada&precio=2000"
+            },
+            "url": "{{base_url}}/api/productos"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Pedidos",
+      "item": [
+        {
+          "name": "Crear pedido (transacción + correo)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"items\": [\n    { \"productoId\": 1, \"cantidad\": 2 },\n    { \"productoId\": 4, \"cantidad\": 3 }\n  ]\n}"
+            },
+            "url": "{{base_url}}/api/pedidos"
+          }
+        },
+        {
+          "name": "Ver mis pedidos (/mios)",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/api/pedidos/mios"
+          }
+        },
+        {
+          "name": "Listar todos los pedidos paginados (ADMIN)",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/api/pedidos?pagina=1&porPagina=5"
+          }
+        },
+        {
+          "name": "Ver detalle de un pedido",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/api/pedidos/1"
+          }
+        },
+        {
+          "name": "Cambiar estado a LISTO (ADMIN - dispara SMS)",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"estado\": \"LISTO\"\n}"
+            },
+            "url": "{{base_url}}/api/pedidos/1/estado"
+          }
+        },
+        {
+          "name": "Error 400 - Items vacío",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"items\": []\n}"
+            },
+            "url": "{{base_url}}/api/pedidos"
+          }
+        },
+        {
+          "name": "Error 404 - Producto inexistente en pedido",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"items\": [{ \"productoId\": 999, \"cantidad\": 1 }]\n}"
+            },
+            "url": "{{base_url}}/api/pedidos"
+          }
+        },
+        {
+          "name": "Error 409 - Stock insuficiente (rollback)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"items\": [\n    { \"productoId\": 1, \"cantidad\": 1 },\n    { \"productoId\": 4, \"cantidad\": 999 }\n  ]\n}"
+            },
+            "url": "{{base_url}}/api/pedidos"
+          }
+        },
+        {
+          "name": "Error 409 - Cambiar un pedido ya ENTREGADO",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"estado\": \"CANCELADO\"\n}"
+            },
+            "url": "{{base_url}}/api/pedidos/1/estado"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Servicios externos",
+      "item": [
+        {
+          "name": "Precio en dólares (API de tasas)",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/api/productos/1/precio-usd"
+          }
+        },
+        {
+          "name": "Subir foto de producto (ADMIN - form-data)",
+          "request": {
+            "method": "POST",
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "imagen",
+                  "type": "file",
+                  "src": ""
+                }
+              ]
+            },
+            "url": "{{base_url}}/api/productos/1/imagen"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Reportes y Usuarios (ADMIN)",
+      "item": [
+        {
+          "name": "Reporte de ventas del día",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/api/reportes/ventas-dia"
+          }
+        },
+        {
+          "name": "Listar usuarios (sin passwordHash)",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/api/usuarios"
+          }
+        }
+      ]
+    }
+  ]
+}

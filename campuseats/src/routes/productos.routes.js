@@ -42,6 +42,14 @@ router.get(
 	controlador.obtener
 );
 
+// Semana 9: el precio en dólares, con una API de terceros. Público, como el menú
+router.get(
+	'/:id/precio-usd',
+	param('id').isInt({ min: 1 }).withMessage('El id debe ser un entero positivo'),
+	validar,
+	controlador.precioUsd
+);
+
 // Subir la foto de un producto: los porteros y la validación ocurren antes de Multer.
 router.post(
 	'/:id/imagen',

@@ -12,15 +12,20 @@ const conDetalle = {
 	items: { include: { producto: { select: { id: true, nombre: true } } } },
 };
 
-export async function obtenerPedido(id) {
+export async function obtenerPedido(id, usuario) {
 	const pedido = await prisma.pedido.findUnique({ where: { id }, include: conDetalle });
 	if (!pedido) throw noEncontrado('Pedido no encontrado');
+	// Semana 8: un CLIENTE solo ve sus pedidos; el de otro "no existe" para él
+	if (usuario && usuario.rol !== 'ADMIN' && pedido.usuarioId !== usuario.id) {
+		throw noEncontrado('Pedido no encontrado');
+	}
 	return pedido;
 }
 
 // GET /api/pedidos?estado=RECIBIDO&pagina=2&porPagina=10&desde=2026-10-01
-export async function listarPedidos({ estado, pagina, porPagina, desde }) {
+export async function listarPedidos({ estado, pagina, porPagina, desde, usuarioId }) {
 	const where = {
+		usuarioId: usuarioId || undefined, // semana 8: /mios filtra por el usuario del token
 		estado: estado || undefined, // undefined = "sin filtro" (el truco del paso 10 de la semana 6)
 		creadoEn: desde ? { gte: new Date(desde) } : undefined,
 	};

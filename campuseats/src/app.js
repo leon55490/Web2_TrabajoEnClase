@@ -5,6 +5,7 @@ import productosRouter from './routes/productos.routes.js';
 import usuariosRouter from './routes/usuarios.routes.js';
 import pedidosRouter from './routes/pedidos.routes.js';
 import authRouter from './routes/auth.routes.js';
+import reportesRouter from './routes/reportes.routes.js';
 import { manejadorErrores } from './middlewares/errores.js';
 
 const app = express();
@@ -26,6 +27,7 @@ app.use('/api/productos', productosRouter);
 app.use('/api/usuarios', usuariosRouter);
 app.use('/api/pedidos', pedidosRouter);
 app.use('/api/auth', authRouter);
+app.use('/api/reportes', reportesRouter);
 
 // 404 para todo lo demás (va al final)
 app.use((req, res) => res.status(404).json({ error: 'Ruta no encontrada' }));

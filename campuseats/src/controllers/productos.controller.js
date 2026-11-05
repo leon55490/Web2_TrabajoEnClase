@@ -1,6 +1,8 @@
 // src/controllers/productos.controller.js
 // Capa de presentación: traduce HTTP ↔ negocio.
 import * as servicio from '../services/productos.service.js';
+import { precioEnDolares } from '../services/tasas.service.js';
+
 export async function listar(req, res, next) {
 	try {
 		const productos = await servicio.listar({
@@ -17,6 +19,16 @@ export async function obtener(req, res, next) {
 	try {
 		const producto = await servicio.buscarPorId(Number(req.params.id));
 		res.json(producto);
+	} catch (error) {
+		next(error);
+	}
+}
+
+export async function precioUsd(req, res, next) {
+	try {
+		const producto = await servicio.buscarPorId(Number(req.params.id)); // 404 si no existe
+		const precio = await precioEnDolares(producto.precio); // nunca lanza: degrada
+		res.json({ id: producto.id, nombre: producto.nombre, ...precio });
 	} catch (error) {
 		next(error);
 	}

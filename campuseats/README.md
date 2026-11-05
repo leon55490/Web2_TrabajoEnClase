@@ -1,56 +1,63 @@
 # CampusEats API
 
-API de Express para el menú y los pedidos de CampusEats. Usa PostgreSQL y Prisma.
+API REST para el menú, pedidos y reportes de la cafetería universitaria CampusEats, construida con **Express 5**, **Prisma 7** y **PostgreSQL 16**.
 
-## Arranque local
+## 1. Arranque desde cero
 
-1. Inicia Docker Desktop.
-2. Crea PostgreSQL:
-
+1. Inicia Docker Desktop y crea el contenedor de PostgreSQL:
    ```powershell
    docker run --name campuseats-db -e POSTGRES_USER=campuseats -e POSTGRES_PASSWORD=secreto123 -e POSTGRES_DB=campuseats -p 5433:5432 -d postgres:16
    ```
+   *(Si ya existe el contenedor, enciéndelo con `docker start campuseats-db`).*
 
-   Si el contenedor ya existe, usa `docker start campuseats-db`.
-3. Copia `.env.example` como `.env` y cambia `JWT_SECRET`.
-4. Instala dependencias y aplica migraciones:
-
+2. Copia `.env.example` a `.env` y ajusta `JWT_SECRET` y las credenciales de Ethereal:
    ```powershell
-   npm install
-   npx prisma migrate deploy
-   npx prisma db seed
+   cp .env.example .env
    ```
 
-5. Inicia la API:
+3. Instala dependencias, aplica migraciones, genera el cliente y corre el seed:
+   ```powershell
+   npm install
+   npx prisma migrate deploy --config prisma7.config.ts
+   npx prisma generate --config prisma7.config.ts
+   npx prisma db seed --config prisma7.config.ts
+   ```
 
+4. Inicia el servidor en `http://localhost:4000`:
    ```powershell
    npm run dev
    ```
 
-La API queda disponible en `http://localhost:4000`.
+## 2. Credenciales del Seed
 
-## Credenciales de desarrollo
+- **Administrador (`ADMIN`)**: `admin@campuseats.co` / `Admin123!`
+- **Cliente (`CLIENTE`)**: `ana@ucaldas.edu.co` / `Cliente123!` (teléfono: `+573001234567`)
 
-El seed crea estas cuentas:
+## 3. Política de acceso (Endpoint × Rol)
 
-- Administrador: `admin@campuseats.co` / `Admin123!`
-- Cliente: `ana@ucaldas.edu.co` / `Cliente123!`
+| Endpoint | Acceso | Descripción |
+| :--- | :--- | :--- |
+| `POST /api/auth/registro` | Público | Registro de cuenta (`CLIENTE`) |
+| `POST /api/auth/login` | Público | Inicio de sesión (retorna JWT) |
+| `GET /api/productos` | Público | Listar menú (`?disponibles=true&buscar=...`) |
+| `GET /api/productos/:id` | Público | Detalle de un producto |
+| `GET /api/productos/:id/precio-usd` | Público | Precio en USD consultando API de tasas con degradación elegante |
+| `POST /api/productos` | `ADMIN` | Crear producto |
+| `PUT /api/productos/:id` | `ADMIN` | Actualizar producto |
+| `PATCH /api/productos/:id/stock` | `ADMIN` | Ajuste atómico de stock (`{ delta }`) |
+| `POST /api/productos/:id/imagen` | `ADMIN` | Subir imagen (`multipart/form-data`, campo `imagen`, máx 2 MB) |
+| `DELETE /api/productos/:id` | `ADMIN` | Eliminar producto (`204`) |
+| `/api/usuarios` (todas las rutas) | `ADMIN` | Listar, ver y crear usuarios (sin exponer `passwordHash`) |
+| `POST /api/pedidos` | `CLIENTE` o `ADMIN` | Crear pedido transaccional (toma `usuarioId` del token) |
+| `GET /api/pedidos` | `ADMIN` | Listar todos los pedidos con filtros y paginación |
+| `GET /api/pedidos/mios` | Autenticado | Listar únicamente los pedidos del usuario autenticado |
+| `GET /api/pedidos/:id` | Dueño o `ADMIN` | Ver detalle de un pedido (para otro cliente responde `404`) |
+| `PATCH /api/pedidos/:id/estado` | `ADMIN` | Cambiar estado del pedido (dispara SMS cuando pasa a `LISTO`) |
+| `GET /api/reportes/ventas-dia` | `ADMIN` | Reporte de ventas del día actual excluyendo cancelados |
 
-Las contraseñas se guardan con bcrypt. El seed es idempotente y actualiza las credenciales de estas cuentas al volver a ejecutarse.
+## 4. Servicios externos (Semana 9)
 
-## Rutas principales
-
-- `POST /api/auth/registro` y `POST /api/auth/login` son públicas.
-- `GET /api/productos` y `GET /api/productos/:id` son públicas.
-- `POST /api/productos/:id/imagen` permite a un ADMIN subir una imagen usando
-  `multipart/form-data` con el campo `imagen`.
-- Para crear o actualizar un producto, envía `multipart/form-data` con el archivo opcional
-  `imagen` (JPG, PNG o WEBP, máximo 2 MB). La imagen queda disponible bajo `/imagenes/productos`.
-- La gestión de productos requiere un token de ADMIN.
-- Crear, listar, consultar y cambiar el estado de pedidos requiere autenticación; cambiar estados requiere ADMIN.
-- La identidad del pedido se toma del token, nunca de `usuarioId` enviado por el cliente.
-- Las respuestas de usuarios y pedidos no exponen `passwordHash`.
-- Los SMS usan el proveedor simulado por defecto. Para Twilio, configura
-  `SMS_PROVEEDOR=twilio`, `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN` y `TWILIO_FROM`.
-
-Para las rutas protegidas, envía `Authorization: Bearer <token>`.
+1. **Correo transaccional (`src/services/email.service.js`)**: Usa Nodemailer + Ethereal (`SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`). Se dispara después del `COMMIT` de `crearPedido` sin `await` y con `.catch()`.
+2. **Subida de imágenes (`src/middlewares/subirImagen.js`)**: Usa Multer con nombres UUID en `uploads/productos` (servidas en `/imagenes/productos`), validando MIME (`JPG`, `PNG`, `WebP`) con `415`, tamaño máximo de 2 MB con `413` y campo inesperado con `400`.
+3. **SMS con proveedor intercambiable (`src/services/sms/`)**: Selección dinámica por `SMS_PROVEEDOR` (`simulado` o `twilio`) al marcar un pedido como `LISTO`.
+4. **API de terceros (`src/services/tasas.service.js`)**: Consulta `open.er-api.com` con `AbortSignal.timeout(3000)` y degrada con `usd: null` si el servicio externo falla o tarda.
