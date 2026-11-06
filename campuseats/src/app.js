@@ -21,6 +21,8 @@ app.use((req, res, next) => {
 
 app.use(express.json());
 app.use('/imagenes/productos', express.static('uploads/productos'));
+// Semana 10: las páginas de demostración del tiempo real (cliente.html, admin.html)
+app.use(express.static('public'));
 
 app.get('/', (req, res) => res.json({ nombre: 'CampusEats API', version: '1.0' }));
 app.use('/api/productos', productosRouter);

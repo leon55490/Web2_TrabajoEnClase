@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8">
+    <title>CampusEats — Panel de cocina</title>
+  </head>
+  <body>
+    <h1>Panel de cocina (ADMIN)</h1>
+    <p>Token JWT del admin (sin "Bearer"): <input id="token" size="60"> <button
+        id="conectar">Conectar</button></p>
+    <ul id="eventos"></ul>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+    function agregar(texto) {
+      const li = document.createElement('li');
+      li.textContent = new Date().toLocaleTimeString() + ' — ' + texto;
+      document.getElementById('eventos').prepend(li);
+    }
+
+    document.getElementById('conectar').addEventListener('click', () => {
+      const token = document.getElementById('token').value.trim();
+      const socket = io({ auth: { token } });
+
+      socket.on('connect', () => agregar('✅ Panel conectado'));
+      socket.on('connect_error', (e) => agregar('❌ Rechazado: ' + e.message));
+      socket.on('pedido:nuevo', (d) =>
+        agregar(`📥 Pedido nuevo #${d.id} por $${d.total.toLocaleString('es-CO')} (${d.items} productos)`)
+      );
+      // Reto 1: mensajes enviados por los clientes desde cliente.html
+      socket.on('mensaje-cliente', (d) =>
+        agregar(`💬 Usuario ${d.de}: ${d.mensaje}`)
+      );
+      // Reto 2: cambios de estado de cualquier pedido en el tablero de cocina
+      socket.on('pedido:estado', (d) =>
+        agregar(`Pedido #${d.id} (usuario ${d.usuarioId}) → ${d.estado}`)
+      );
+    });
+  </script>
+  </body>
+</html>

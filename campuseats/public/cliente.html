@@ -1,0 +1,829 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CampusEats — Mi pedido en vivo</title>
+  <style>
+    :root {
+      --bg: #0f172a;
+      --panel: #1e293b;
+      --card: #334155;
+      --border: #475569;
+      --text: #f8fafc;
+      --muted: #94a3b8;
+      --primary: #3b82f6;
+      --primary-hover: #2563eb;
+      --green: #10b981;
+      --amber: #f59e0b;
+      --blue: #38bdf8;
+      --purple: #a855f7;
+      --red: #ef4444;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background-color: var(--bg);
+      color: var(--text);
+      padding: 24px;
+      line-height: 1.5;
+    }
+
+    .container {
+      max-width: 1120px;
+      margin: 0 auto;
+    }
+
+    /* Cabecera */
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 16px;
+      background: var(--panel);
+      border: 1px solid var(--border);
+      padding: 18px 24px;
+      border-radius: 14px;
+      margin-bottom: 20px;
+    }
+
+    .header-title {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .header-title h1 {
+      font-size: 1.45rem;
+      font-weight: 700;
+    }
+
+    .status-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 14px;
+      border-radius: 999px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      background: rgba(148, 163, 184, 0.15);
+      color: var(--muted);
+      border: 1px solid var(--border);
+    }
+
+    .status-pill.online {
+      background: rgba(16, 185, 129, 0.15);
+      color: #34d399;
+      border-color: rgba(16, 185, 129, 0.4);
+    }
+
+    .status-pill.error {
+      background: rgba(239, 68, 68, 0.15);
+      color: #f87171;
+      border-color: rgba(239, 68, 68, 0.4);
+    }
+
+    .dot {
+      width: 9px;
+      height: 9px;
+      border-radius: 50%;
+      background: currentColor;
+    }
+
+    .status-pill.online .dot {
+      box-shadow: 0 0 8px #34d399;
+      animation: pulse 1.6s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { transform: scale(1); opacity: 1; }
+      50% { transform: scale(1.25); opacity: 0.7; }
+    }
+
+    /* Barra de conexión y cocina */
+    .controls-grid {
+      display: grid;
+      grid-template-columns: 1.3fr 1fr;
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+
+    @media (max-width: 820px) {
+      .controls-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 18px 20px;
+    }
+
+    .panel-label {
+      font-size: 0.8rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--muted);
+      font-weight: 600;
+      margin-bottom: 10px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .input-row {
+      display: flex;
+      gap: 10px;
+    }
+
+    input {
+      flex: 1;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 10px 14px;
+      border-radius: 10px;
+      font-size: 0.9rem;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+
+    input:focus {
+      border-color: var(--primary);
+    }
+
+    button {
+      background: var(--primary);
+      color: white;
+      border: none;
+      padding: 10px 18px;
+      border-radius: 10px;
+      font-weight: 600;
+      font-size: 0.9rem;
+      cursor: pointer;
+      transition: background 0.15s, transform 0.1s;
+      white-space: nowrap;
+    }
+
+    button:hover {
+      background: var(--primary-hover);
+    }
+
+    button:active {
+      transform: translateY(1px);
+    }
+
+    button.btn-secondary {
+      background: var(--card);
+      border: 1px solid var(--border);
+    }
+
+    button.btn-secondary:hover {
+      background: #475569;
+    }
+
+    /* Layout principal: Pedidos a la izquierda, Consola Socket a la derecha */
+    .main-grid {
+      display: grid;
+      grid-template-columns: 1.35fr 1fr;
+      gap: 20px;
+      align-items: start;
+    }
+
+    @media (max-width: 900px) {
+      .main-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .section-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 14px;
+    }
+
+    .section-header h2 {
+      font-size: 1.15rem;
+      font-weight: 700;
+    }
+
+    /* Tarjetas de Pedidos */
+    #pedidos {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .pedido-card {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 16px 18px;
+      transition: all 0.35s ease;
+      position: relative;
+      overflow: hidden;
+    }
+
+    /* Efecto destello cuando llega un evento pedido:estado en vivo */
+    .pedido-card.actualizado-flash {
+      border-color: var(--green);
+      box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.3), 0 8px 25px -5px rgba(16, 185, 129, 0.25);
+      transform: translateY(-2px);
+    }
+
+    .pedido-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 14px;
+    }
+
+    .pedido-id {
+      font-size: 1.05rem;
+      font-weight: 700;
+      color: var(--text);
+    }
+
+    .pedido-total {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      color: var(--muted);
+      font-size: 0.92rem;
+      margin-left: 8px;
+    }
+
+    .badge-estado {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 12px;
+      border-radius: 999px;
+      font-size: 0.78rem;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+
+    .estado-RECIBIDO { background: rgba(56, 189, 248, 0.15); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.35); }
+    .estado-PREPARANDO { background: rgba(245, 158, 11, 0.18); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.4); }
+    .estado-LISTO { background: rgba(16, 185, 129, 0.2); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.45); }
+    .estado-ENTREGADO { background: rgba(168, 85, 247, 0.18); color: #c084fc; border: 1px solid rgba(168, 85, 247, 0.4); }
+    .estado-CANCELADO { background: rgba(239, 68, 68, 0.18); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.4); }
+
+    /* Barra de progreso de pasos del pedido */
+    .stepper {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 6px;
+      margin-top: 8px;
+    }
+
+    .step {
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+    }
+
+    .step-bar {
+      height: 6px;
+      border-radius: 999px;
+      background: var(--card);
+      transition: background 0.35s ease;
+    }
+
+    .step.activo .step-bar {
+      background: var(--primary);
+    }
+
+    .step.completado .step-bar {
+      background: var(--green);
+    }
+
+    .step.cancelado .step-bar {
+      background: var(--red);
+    }
+
+    .step-label {
+      font-size: 0.72rem;
+      color: var(--muted);
+      font-weight: 600;
+      text-align: center;
+    }
+
+    .step.activo .step-label,
+    .step.completado .step-label {
+      color: var(--text);
+    }
+
+    .pedido-update-tag {
+      margin-top: 10px;
+      font-size: 0.78rem;
+      color: #34d399;
+      display: none;
+      align-items: center;
+      gap: 6px;
+      font-weight: 600;
+    }
+
+    .pedido-update-tag.visible {
+      display: inline-flex;
+    }
+
+    /* Bitácora de Eventos del Socket en Tiempo Real */
+    #eventos {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      max-height: 520px;
+      overflow-y: auto;
+      padding-right: 4px;
+    }
+
+    .evento-item {
+      background: var(--bg);
+      border-left: 4px solid var(--primary);
+      border-top: 1px solid rgba(71, 85, 105, 0.5);
+      border-right: 1px solid rgba(71, 85, 105, 0.5);
+      border-bottom: 1px solid rgba(71, 85, 105, 0.5);
+      border-radius: 8px;
+      padding: 10px 12px;
+      font-size: 0.85rem;
+      animation: slideIn 0.22s ease-out;
+    }
+
+    @keyframes slideIn {
+      from { opacity: 0; transform: translateY(-6px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .evento-item.tipo-connect { border-left-color: var(--green); }
+    .evento-item.tipo-estado { border-left-color: var(--amber); background: rgba(245, 158, 11, 0.07); }
+    .evento-item.tipo-emit { border-left-color: var(--purple); }
+    .evento-item.tipo-http { border-left-color: var(--blue); }
+    .evento-item.tipo-error { border-left-color: var(--red); background: rgba(239, 68, 68, 0.08); }
+
+    .evento-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 4px;
+      font-size: 0.74rem;
+      color: var(--muted);
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    }
+
+    .evento-tag {
+      padding: 1px 7px;
+      border-radius: 4px;
+      background: rgba(255, 255, 255, 0.08);
+      color: var(--text);
+      font-weight: 600;
+    }
+
+    .evento-texto {
+      font-weight: 500;
+      color: var(--text);
+    }
+
+    .evento-payload {
+      margin-top: 6px;
+      padding: 6px 8px;
+      background: rgba(15, 23, 42, 0.75);
+      border: 1px solid rgba(71, 85, 105, 0.5);
+      border-radius: 6px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      font-size: 0.75rem;
+      color: #cbd5e1;
+      white-space: pre-wrap;
+      word-break: break-all;
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: 28px 16px;
+      color: var(--muted);
+      font-size: 0.9rem;
+      border: 1px dashed var(--border);
+      border-radius: 10px;
+    }
+
+    /* Toast flotante cuando cambia un pedido */
+    #toast-container {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      z-index: 1000;
+    }
+
+    .toast {
+      background: #064e3b;
+      border: 1px solid #10b981;
+      color: #ecfdf5;
+      padding: 14px 18px;
+      border-radius: 12px;
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.45);
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-size: 0.92rem;
+      font-weight: 600;
+      animation: slideIn 0.25s ease-out;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <!-- CABECERA CON ESTADO DEL SOCKET EN VIVO -->
+    <header class="header">
+      <div class="header-title">
+        <span style="font-size: 1.7rem;">🍔</span>
+        <div>
+          <h1>CampusEats — Mi pedido en vivo</h1>
+          <div style="font-size: 0.82rem; color: var(--muted);">
+            Sincronización híbrida: API REST (<code>GET /api/pedidos/mios</code>) + WebSockets (<code>Socket.IO</code>)
+          </div>
+        </div>
+      </div>
+      <div id="socket-pill" class="status-pill">
+        <span class="dot"></span>
+        <span id="socket-status-text">Desconectado</span>
+      </div>
+    </header>
+
+    <!-- CONTROLES: TOKEN JWT Y PREGUNTAR A LA COCINA -->
+    <div class="controls-grid">
+      <div class="panel">
+        <div class="panel-label">
+          <span>1. Autenticación del Socket y API (JWT sin "Bearer")</span>
+          <span id="socket-id-badge" style="font-family: monospace;"></span>
+        </div>
+        <div class="input-row">
+          <input id="token" placeholder="Pega aquí el token JWT de Ana o del cliente...">
+          <button id="conectar">🔌 Conectar</button>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-label">
+          <span>2. Comunicación directa con Cocina (Evento: <code>ping-cocina</code>)</span>
+        </div>
+        <div class="input-row">
+          <input id="mensaje-cocina" placeholder="Ej: ¿Cuánto falta para mi pedido?">
+          <button id="preguntar">💬 Preguntar a la cocina</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- GRILLA PRINCIPAL: MIS PEDIDOS + MONITOR DE EVENTOS DEL SOCKET -->
+    <div class="main-grid">
+      <!-- COLUMNA IZQUIERDA: TARJETAS DE PEDIDOS CON BARRA DE PROGRESO -->
+      <section class="panel">
+        <div class="section-header">
+          <h2>📦 Mis pedidos</h2>
+          <span id="contador-pedidos" style="font-size: 0.82rem; color: var(--muted);">0 pedidos cargados</span>
+        </div>
+        <ul id="pedidos">
+          <li class="empty-state">Pega tu token JWT y pulsa <strong>Conectar</strong> para ver tus pedidos en tiempo real.</li>
+        </ul>
+      </section>
+
+      <!-- COLUMNA DERECHA: MONITOR COMPLETO DE EVENTOS DEL SOCKET -->
+      <section class="panel">
+        <div class="section-header">
+          <h2>📡 Monitor de Eventos Socket.IO</h2>
+          <button id="limpiar-eventos" class="btn-secondary" style="padding: 5px 10px; font-size: 0.78rem;">Limpiar</button>
+        </div>
+        <ul id="eventos">
+          <li class="empty-state" id="eventos-vacio">Aquí aparecerán todos los eventos del ciclo de vida del socket.</li>
+        </ul>
+      </section>
+    </div>
+  </div>
+
+  <div id="toast-container"></div>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script>
+    let socketActual = null;
+    const PASOS_FLUJO = ['RECIBIDO', 'PREPARANDO', 'LISTO', 'ENTREGADO'];
+
+    const ICONOS_ESTADO = {
+      RECIBIDO: '🧾 RECIBIDO',
+      PREPARANDO: '👨‍🍳 PREPARANDO',
+      LISTO: '🔔 LISTO PARA RECOGER',
+      ENTREGADO: '✅ ENTREGADO',
+      CANCELADO: '❌ CANCELADO',
+    };
+
+    function actualizarIndicadorSocket(estado, texto, socketId = '') {
+      const pill = document.getElementById('socket-pill');
+      const label = document.getElementById('socket-status-text');
+      const idBadge = document.getElementById('socket-id-badge');
+      pill.className = 'status-pill ' + (estado === 'online' ? 'online' : estado === 'error' ? 'error' : '');
+      label.textContent = texto;
+      idBadge.textContent = socketId ? `socket.id: ${socketId}` : '';
+    }
+
+    function mostrarToast(texto) {
+      const cont = document.getElementById('toast-container');
+      const toast = document.createElement('div');
+      toast.className = 'toast';
+      toast.innerHTML = `<span>🍽️</span><span>${texto}</span>`;
+      cont.appendChild(toast);
+      setTimeout(() => toast.remove(), 4500);
+    }
+
+    // Agrega un evento detallado al monitor de Socket.IO
+    function agregar(texto, opciones = {}) {
+      const vacio = document.getElementById('eventos-vacio');
+      if (vacio) vacio.remove();
+
+      const { tipo = 'info', evento = 'socket', payload = null } = opciones;
+      const li = document.createElement('li');
+      li.className = `evento-item tipo-${tipo}`;
+
+      const hora = new Date().toLocaleTimeString();
+      let html = `
+        <div class="evento-header">
+          <span class="evento-tag">${evento}</span>
+          <span>${hora}</span>
+        </div>
+        <div class="evento-texto">${texto}</div>
+      `;
+
+      if (payload !== null && payload !== undefined) {
+        const json = typeof payload === 'string' ? payload : JSON.stringify(payload);
+        html += `<div class="evento-payload">${json}</div>`;
+      }
+
+      li.innerHTML = html;
+      document.getElementById('eventos').prepend(li);
+    }
+
+    function construirStepperHTML(estadoActual) {
+      if (estadoActual === 'CANCELADO') {
+        return `
+          <div class="stepper">
+            ${PASOS_FLUJO.map((paso) => `
+              <div class="step cancelado">
+                <div class="step-bar"></div>
+                <div class="step-label">${paso}</div>
+              </div>
+            `).join('')}
+          </div>
+        `;
+      }
+
+      const indiceActual = PASOS_FLUJO.indexOf(estadoActual);
+      return `
+        <div class="stepper">
+          ${PASOS_FLUJO.map((paso, idx) => {
+            let clase = '';
+            if (idx < indiceActual || estadoActual === 'ENTREGADO') clase = 'completado';
+            else if (idx === indiceActual) clase = 'activo';
+            return `
+              <div class="step ${clase}">
+                <div class="step-bar"></div>
+                <div class="step-label">${paso}</div>
+              </div>
+            `;
+          }).join('')}
+        </div>
+      `;
+    }
+
+    function renderizarTarjetaPedido(pedido, fueActualizadoEnVivo = false) {
+      const li = document.createElement('li');
+      li.id = 'pedido-' + pedido.id;
+      li.className = 'pedido-card' + (fueActualizadoEnVivo ? ' actualizado-flash' : '');
+      li.dataset.total = pedido.total;
+      li.dataset.estado = pedido.estado;
+
+      const textoPlanoCompat = `#${pedido.id} · $${Number(pedido.total).toLocaleString('es-CO')} · ${pedido.estado}`;
+
+      li.innerHTML = `
+        <div class="pedido-top">
+          <div>
+            <span class="pedido-id">Pedido #${pedido.id}</span>
+            <span class="pedido-total">$${Number(pedido.total).toLocaleString('es-CO')}</span>
+          </div>
+          <span class="badge-estado estado-${pedido.estado}" id="badge-pedido-${pedido.id}">
+            ${ICONOS_ESTADO[pedido.estado] || pedido.estado}
+          </span>
+        </div>
+        <div id="stepper-pedido-${pedido.id}">
+          ${construirStepperHTML(pedido.estado)}
+        </div>
+        <div class="pedido-update-tag ${fueActualizadoEnVivo ? 'visible' : ''}" id="tag-pedido-${pedido.id}">
+          ⚡ Actualizado en vivo a las ${new Date().toLocaleTimeString()}
+        </div>
+        <span style="display:none" class="compat-text">${textoPlanoCompat}</span>
+      `;
+      return li;
+    }
+
+    // Semana 10, paso 5: el estado ACTUAL sale de la API REST (la fuente de verdad)
+    async function cargarPedidos(token) {
+      agregar('🔄 Consultando estado actual en GET /api/pedidos/mios?porPagina=5...', {
+        tipo: 'http',
+        evento: 'HTTP GET',
+      });
+
+      const respuesta = await fetch('/api/pedidos/mios?porPagina=5', {
+        headers: { Authorization: 'Bearer ' + token }, // aquí sí va "Bearer": es HTTP
+      });
+
+      if (!respuesta.ok) {
+        return agregar('❌ No se pudieron cargar los pedidos: HTTP ' + respuesta.status, {
+          tipo: 'error',
+          evento: 'HTTP ' + respuesta.status,
+        });
+      }
+
+      const { datos } = await respuesta.json();
+      const lista = document.getElementById('pedidos');
+      lista.innerHTML = '';
+
+      document.getElementById('contador-pedidos').textContent = `${datos.length} pedido(s)`;
+
+      if (datos.length === 0) {
+        lista.innerHTML = '<li class="empty-state">Aún no tienes pedidos registrados.</li>';
+      } else {
+        for (const pedido of datos) {
+          lista.append(renderizarTarjetaPedido(pedido));
+        }
+      }
+
+      agregar(`📥 Lista sincronizada desde PostgreSQL (${datos.length} pedidos cargados)`, {
+        tipo: 'http',
+        evento: 'REST SYNC',
+        payload: datos.map((p) => ({ id: p.id, estado: p.estado, total: p.total })),
+      });
+    }
+
+    document.getElementById('conectar').addEventListener('click', () => {
+      const token = document.getElementById('token').value.trim();
+      if (socketActual) {
+        socketActual.disconnect();
+      }
+
+      agregar('⏳ Iniciando handshake con Socket.IO...', {
+        tipo: 'info',
+        evento: 'socket.connect()',
+      });
+
+      const socket = io({ auth: { token } });
+      socketActual = socket;
+
+      // 1. Conexión exitosa
+      socket.on('connect', () => {
+        actualizarIndicadorSocket('online', 'Conectado en vivo', socket.id);
+        agregar('✅ Conectado en tiempo real al servidor Socket.IO', {
+          tipo: 'connect',
+          evento: 'connect',
+          payload: { socketId: socket.id, transporte: socket.io.engine.transport.name },
+        });
+
+        // Detectar cuando el motor sube de HTTP Long-Polling a WebSocket puro
+        socket.io.engine.on('upgrade', (transport) => {
+          agregar(`⚡ Transporte actualizado a WebSocket (${transport.name})`, {
+            tipo: 'connect',
+            evento: 'engine:upgrade',
+          });
+        });
+
+        cargarPedidos(token);
+      });
+
+      // 2. Error de conexión / autenticación JWT
+      socket.on('connect_error', (e) => {
+        actualizarIndicadorSocket('error', 'Rechazado: ' + e.message);
+        agregar('❌ Rechazado: ' + e.message, {
+          tipo: 'error',
+          evento: 'connect_error',
+          payload: { message: e.message },
+        });
+      });
+
+      // 3. Desconexión y reconexión automática
+      socket.on('disconnect', (razon) => {
+        actualizarIndicadorSocket('error', 'Desconectado (' + razon + ')');
+        agregar('🔌 Socket desconectado: ' + razon, {
+          tipo: 'error',
+          evento: 'disconnect',
+          payload: { reason: razon },
+        });
+      });
+
+      socket.io.on('reconnect_attempt', (intento) => {
+        actualizarIndicadorSocket('', `Reconectando (intento #${intento})...`);
+        agregar(`🔄 Intento de reconexión automática #${intento}`, {
+          tipo: 'info',
+          evento: 'reconnect_attempt',
+        });
+      });
+
+      socket.io.on('reconnect', (intento) => {
+        agregar(`✅ Reconectado tras ${intento} intento(s)`, {
+          tipo: 'connect',
+          evento: 'reconnect',
+        });
+      });
+
+      // 4. Evento de negocio: cambio de estado de un pedido en vivo
+      socket.on('pedido:estado', (d) => {
+        agregar(`🍽️ Tu pedido #${d.id} ahora está: ${d.estado}`, {
+          tipo: 'estado',
+          evento: 'pedido:estado',
+          payload: d,
+        });
+
+        mostrarToast(`Tu pedido #${d.id} cambió a ${d.estado}`);
+
+        const li = document.getElementById('pedido-' + d.id);
+        if (li) {
+          const estadoAnterior = li.dataset.estado;
+          li.dataset.estado = d.estado;
+
+          // Actualizar badge de estado
+          const badge = document.getElementById('badge-pedido-' + d.id);
+          if (badge) {
+            badge.className = `badge-estado estado-${d.estado}`;
+            badge.textContent = ICONOS_ESTADO[d.estado] || d.estado;
+          }
+
+          // Actualizar barra de progreso (stepper)
+          const stepper = document.getElementById('stepper-pedido-' + d.id);
+          if (stepper) {
+            stepper.innerHTML = construirStepperHTML(d.estado);
+          }
+
+          // Mostrar etiqueta de hora de actualización en vivo
+          const tag = document.getElementById('tag-pedido-' + d.id);
+          if (tag) {
+            tag.className = 'pedido-update-tag visible';
+            tag.textContent = `⚡ Actualizado en vivo (${estadoAnterior} → ${d.estado}) a las ${new Date().toLocaleTimeString()}`;
+          }
+
+          // Activar animación de destello verde en la tarjeta
+          li.classList.remove('actualizado-flash');
+          void li.offsetWidth; // reflow para reiniciar animación
+          li.classList.add('actualizado-flash');
+          setTimeout(() => li.classList.remove('actualizado-flash'), 2800);
+        } else {
+          // Si es un pedido nuevo que aún no estaba en la lista, sincronizamos por HTTP
+          cargarPedidos(token);
+        }
+      });
+    });
+
+    // Reto 1: Preguntar a la cocina usando el socket ya conectado
+    document.getElementById('preguntar').addEventListener('click', () => {
+      if (!socketActual || !socketActual.connected) {
+        return agregar('❌ Conéctate primero antes de preguntar a la cocina', {
+          tipo: 'error',
+          evento: 'ping-cocina (bloqueado)',
+        });
+      }
+      const input = document.getElementById('mensaje-cocina');
+      const texto = input.value.trim();
+      if (!texto) return;
+
+      socketActual.emit('ping-cocina', texto);
+      agregar(`📤 Mensaje enviado a cocina: "${texto}"`, {
+        tipo: 'emit',
+        evento: 'emit → ping-cocina',
+        payload: texto,
+      });
+      input.value = '';
+    });
+
+    // Permitir enviar mensaje a cocina con Enter
+    document.getElementById('mensaje-cocina').addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        document.getElementById('preguntar').click();
+      }
+    });
+
+    // Botón para limpiar la bitácora de eventos
+    document.getElementById('limpiar-eventos').addEventListener('click', () => {
+      document.getElementById('eventos').innerHTML =
+        '<li class="empty-state" id="eventos-vacio">Bitácora limpia. Esperando nuevos eventos...</li>';
+    });
+  </script>
+</body>
+</html>

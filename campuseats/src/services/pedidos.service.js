@@ -4,6 +4,7 @@ import { prisma } from '../db.js';
 import { conflicto, noEncontrado } from '../errores.js';
 import { enviarConfirmacionPedido } from './email.service.js';
 import { enviarSms } from './sms/index.js';
+import { notificarAdmins, notificarUsuario } from '../tiemporeal.js';
 
 // Qué relaciones acompañan a un pedido al leerlo.
 // El usuario va SIEMPRE con select: el passwordHash nunca sale en una respuesta.
@@ -94,8 +95,11 @@ export async function crearPedido(usuarioId, items) {
 
 	// El correo se dispara después del commit y no bloquea la creación del pedido.
 	enviarConfirmacionPedido(pedido.usuario.email, pedido).catch((err) => {
-		console.error('No se pudo enviar el email de confirmación:', err.message || err.code);
+		console.error('No se pudo enviar el email de confirmación:', err.message || err.code); // ESOCKET = sin variables SMTP
 	});
+
+	// Semana 10: el panel de la cocina se entera al instante (también después del commit)
+	notificarAdmins('pedido:nuevo', { id: pedido.id, total: pedido.total, items: pedido.items.length });
 
 	return pedido;
 }
@@ -105,7 +109,7 @@ const ESTADOS_FINALES = ['ENTREGADO', 'CANCELADO'];
 export async function cambiarEstado(id, estado) {
 	const pedido = await prisma.pedido.findUnique({
 		where: { id },
-		include: { usuario: { select: { telefono: true } } },
+		include: { usuario: { select: { telefono: true } } }, // semana 9: para el SMS
 	});
 	if (!pedido) throw noEncontrado('Pedido no encontrado');
 	if (ESTADOS_FINALES.includes(pedido.estado)) {
@@ -113,6 +117,21 @@ export async function cambiarEstado(id, estado) {
 	}
 	const actualizado = await prisma.pedido.update({ where: { id }, data: { estado } });
 
+	// Semana 10: el dueño del pedido lo ve cambiar en vivo (a SU sala, no a todos)
+	notificarUsuario(actualizado.usuarioId, 'pedido:estado', {
+		id: actualizado.id,
+		estado: actualizado.estado,
+	});
+
+	// Reto 2: el tablero del admin también ve el cambio de estado, con el usuarioId
+	notificarAdmins('pedido:estado', {
+		id: actualizado.id,
+		usuarioId: actualizado.usuarioId,
+		estado: actualizado.estado,
+	});
+
+	// Semana 9: aviso por SMS, mismo patrón del correo (después de guardar, sin await, con catch).
+	// El teléfono es opcional: no todos los usuarios lo tienen
 	if (estado === 'LISTO' && pedido.usuario.telefono) {
 		enviarSms(
 			pedido.usuario.telefono,
