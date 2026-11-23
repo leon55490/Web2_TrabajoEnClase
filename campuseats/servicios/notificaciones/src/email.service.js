@@ -1,4 +1,4 @@
-// src/services/email.service.js — correos de la aplicación
+// servicios/notificaciones/src/email.service.js — correos de la aplicación
 import nodemailer from 'nodemailer';
 
 // El transporte se configura por variables de entorno:

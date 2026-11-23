@@ -1,4 +1,4 @@
-// Interfaz del proveedor SMS: el resto de la aplicación no conoce la implementación activa.
+// servicios/notificaciones/src/sms/index.js — interfaz del proveedor SMS
 import { enviarSmsSimulado } from './sms.simulado.js';
 import { enviarSmsTwilio } from './sms.twilio.js';
 

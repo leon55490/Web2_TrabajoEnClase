@@ -1,9 +1,10 @@
 // src/services/pedidos.service.js
 // Capa de negocio de pedidos. NO conoce req, res ni códigos HTTP.
 import { prisma } from '../db.js';
-import { conflicto, noEncontrado } from '../errores.js';
-import { enviarConfirmacionPedido } from './email.service.js';
-import { enviarSms } from './sms/index.js';
+import { conflicto, noEncontrado, ErrorHttp } from '../errores.js';
+// Semana 11: mismos nombres, otra procedencia. Ahora son peticiones HTTP al servicio de notificaciones
+import { enviarConfirmacionPedido, enviarSms } from '../clientes/notificaciones.cliente.js';
+import { cobrar, reembolsar } from '../clientes/pagos.cliente.js';
 import { notificarAdmins, notificarUsuario } from '../tiemporeal.js';
 
 // Qué relaciones acompañan a un pedido al leerlo.
@@ -49,53 +50,95 @@ export async function listarPedidos({ estado, pagina, porPagina, desde, usuarioI
 	};
 }
 
+// Semana 11: el total se calcula ANTES de cobrar, con los precios de la base
+async function calcularTotal(items) {
+	let total = 0;
+	for (const item of items) {
+		const producto = await prisma.producto.findUnique({ where: { id: item.productoId } });
+		if (!producto) throw noEncontrado(`Producto ${item.productoId} no existe`);
+		total += producto.precio * item.cantidad;
+	}
+	return total;
+}
+
+// Semana 11: cobrar es parte de la venta. Sin cobro aprobado no se toca la base
+async function cobrarPedido(usuarioId, total) {
+	let pago;
+	try {
+		pago = await cobrar({ monto: total, referencia: `u${usuarioId}-${Date.now()}` });
+	} catch (err) {
+		// Caído, lento (timeout) o respondió algo raro: la venta no puede seguir, pero con un mensaje claro
+		console.error('Pagos no disponible:', err.message);
+		throw new ErrorHttp(503, 'El servicio de pagos no está disponible, intenta en unos minutos');
+	}
+	if (!pago.aprobado) throw new ErrorHttp(402, `Pago rechazado: ${pago.motivo}`);
+	return pago;
+}
+
 // items llega como [{ productoId: 1, cantidad: 2 }, ...]
 export async function crearPedido(usuarioId, items) {
+	// Semana 11: primero cobrar, después crear
+	const pago = await cobrarPedido(usuarioId, await calcularTotal(items));
+
 	// $transaction con una función: todo lo que use "tx" se confirma junto o no se confirma
-	const pedido = await prisma.$transaction(async (tx) => {
-		const usuario = await tx.usuario.findUnique({ where: { id: usuarioId } });
-		if (!usuario) throw noEncontrado(`Usuario ${usuarioId} no existe`);
+	const pedido = await prisma
+		.$transaction(async (tx) => {
+			const usuario = await tx.usuario.findUnique({ where: { id: usuarioId } });
+			if (!usuario) throw noEncontrado(`Usuario ${usuarioId} no existe`);
 
-		let total = 0;
-		const itemsParaCrear = [];
+			let total = 0;
+			const itemsParaCrear = [];
 
-		for (const item of items) {
-			const producto = await tx.producto.findUnique({ where: { id: item.productoId } });
-			if (!producto) throw noEncontrado(`Producto ${item.productoId} no existe`);
-			// La condición viaja DENTRO del UPDATE (el patrón del paso 8 de la semana 6):
-			// la base revisa y descuenta en un solo paso, aunque lleguen 20 pedidos a la vez
-			const { count } = await tx.producto.updateMany({
-				where: { id: producto.id, stock: { gte: item.cantidad } },
-				data: { stock: { decrement: item.cantidad } },
-			});
-			if (count === 0) {
-				// Este throw aborta la transacción completa: ROLLBACK automático
-				throw conflicto(
-					`Stock insuficiente de "${producto.nombre}": se piden ${item.cantidad}`
-				);
+			for (const item of items) {
+				const producto = await tx.producto.findUnique({ where: { id: item.productoId } });
+				if (!producto) throw noEncontrado(`Producto ${item.productoId} no existe`);
+				// La condición viaja DENTRO del UPDATE (el patrón del paso 8 de la semana 6):
+				// la base revisa y descuenta en un solo paso, aunque lleguen 20 pedidos a la vez
+				const { count } = await tx.producto.updateMany({
+					where: { id: producto.id, stock: { gte: item.cantidad } },
+					data: { stock: { decrement: item.cantidad } },
+				});
+				if (count === 0) {
+					// Este throw aborta la transacción completa: ROLLBACK automático
+					throw conflicto(
+						`Stock insuficiente de "${producto.nombre}": se piden ${item.cantidad}`
+					);
+				}
+
+				total += producto.precio * item.cantidad; // el precio sale de la base, nunca del request
+				itemsParaCrear.push({
+					productoId: producto.id,
+					cantidad: item.cantidad,
+					precioUnitario: producto.precio, // se congela el precio de hoy
+				});
 			}
 
-			total += producto.precio * item.cantidad; // el precio sale de la base, nunca del request
-			itemsParaCrear.push({
-				productoId: producto.id,
-				cantidad: item.cantidad,
-				precioUnitario: producto.precio, // se congela el precio de hoy
+			// El pedido y sus items en una sola escritura anidada
+			return tx.pedido.create({
+				data: {
+					usuarioId,
+					total,
+					pagoRef: pago.transaccionId, // semana 11: el comprobante
+					items: { create: itemsParaCrear },
+				},
+				include: {
+					usuario: { select: { nombre: true, email: true } }, // semana 9: a quién escribirle
+					items: { include: { producto: { select: { nombre: true } } } }, // semana 9: el correo muestra nombres
+				},
 			});
-		}
-
-		// El pedido y sus items en una sola escritura anidada
-		return tx.pedido.create({
-			data: { usuarioId, total, items: { create: itemsParaCrear } },
-			include: {
-				usuario: { select: { nombre: true, email: true } },
-				items: { include: { producto: { select: { nombre: true } } } },
-			},
+		})
+		.catch((err) => {
+			// Reto 2: compensación (Saga). Si la transacción falló después de cobrar, pedimos el reembolso
+			reembolsar(pago.transaccionId).catch((errReembolso) => {
+				console.error('No se pudo reembolsar el pago:', errReembolso.message);
+			});
+			throw err;
 		});
-	});
 
-	// El correo se dispara después del commit y no bloquea la creación del pedido.
+	// Semana 9: el correo va DESPUÉS del commit (un correo no tiene rollback).
+	// "Dispara y no esperes": sin await, y el catch evita que un fallo del correo tumbe la venta
 	enviarConfirmacionPedido(pedido.usuario.email, pedido).catch((err) => {
-		console.error('No se pudo enviar el email de confirmación:', err.message || err.code); // ESOCKET = sin variables SMTP
+		console.error('No se pudo enviar el email de confirmación:', err.message || err.code); // fetch failed = notificaciones apagado
 	});
 
 	// Semana 10: el panel de la cocina se entera al instante (también después del commit)

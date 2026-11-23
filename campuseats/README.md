@@ -59,5 +59,28 @@ API REST para el menú, pedidos y reportes de la cafetería universitaria Campus
 
 1. **Correo transaccional (`src/services/email.service.js`)**: Usa Nodemailer + Ethereal (`SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`). Se dispara después del `COMMIT` de `crearPedido` sin `await` y con `.catch()`.
 2. **Subida de imágenes (`src/middlewares/subirImagen.js`)**: Usa Multer con nombres UUID en `uploads/productos` (servidas en `/imagenes/productos`), validando MIME (`JPG`, `PNG`, `WebP`) con `415`, tamaño máximo de 2 MB con `413` y campo inesperado con `400`.
-3. **SMS con proveedor intercambiable (`src/services/sms/`)**: Selección dinámica por `SMS_PROVEEDOR` (`simulado` o `twilio`) al marcar un pedido como `LISTO`.
+3. **SMS con proveedor intercambiable (`servicios/notificaciones/src/sms/`)**: Selección dinámica por `SMS_PROVEEDOR` (`simulado` o `twilio`) al marcar un pedido como `LISTO`.
 4. **API de terceros (`src/services/tasas.service.js`)**: Consulta `open.er-api.com` con `AbortSignal.timeout(3000)` y degrada con `usd: null` si el servicio externo falla o tarda.
+
+## 5. Arquitectura de Microservicios (Semana 11)
+
+```text
+                navegador, Postman
+                        │
+                 ┌──────▼───────┐
+                 │ gateway :4000│ ← la única puerta pública (GET /salud, /api, /socket.io, /imagenes...)
+                 └──────┬───────┘
+                        │ reenvía HTTP y upgrade WebSocket
+                 ┌──────▼───────┐  HTTP + token  ┌────────────────────┐
+                 │ core :4001   │───────────────▶│ notificaciones:4002│
+                 │ (+ la base)  │───────────────▶│ pagos :4003        │
+                 └──────────────┘                └────────────────────┘
+```
+
+| Servicio | Puerto | Rol | Si se cae... |
+| :--- | :--- | :--- | :--- |
+| **API Gateway** (`servicios/gateway`) | `4000` | Única puerta pública (`http-proxy-middleware` + upgrade WebSocket + `/salud` distribuido) | El cliente no puede entrar al sistema. |
+| **Core** (raíz) | `4001` | Auth, productos, pedidos, reportes y Socket.IO + PostgreSQL | No hay operación disponible (`503` en `/salud`). |
+| **Notificaciones** (`servicios/notificaciones`) | `4002` | Envío de correos (Nodemailer/Ethereal) y SMS (`202 Accepted`) | **La venta sigue**: el pedido se crea (`201`) o cambia de estado; el fallo se atrapa con `.catch()`. |
+| **Pagos simulado** (`servicios/pagos`) | `4003` | Cobros (`402` si `> $100.000`) y reembolsos por compensación (Saga) | **La venta se cancela**: responde `503` antes de tocar la base de datos. Si la transacción de base de datos falla tras cobrar (ej. stock insuficiente `409`), el core dispara `POST /pagos/reembolsar`. |
+

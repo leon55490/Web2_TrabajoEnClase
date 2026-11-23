@@ -47,6 +47,7 @@ model Pedido {
   id        Int          @id @default(autoincrement())
   estado    EstadoPedido @default(RECIBIDO)
   total     Int
+  pagoRef   String?      // semana 11: el transaccionId que devolvió el servicio de pagos
   creadoEn  DateTime     @default(now())
   usuarioId Int
   usuario   Usuario     @relation(fields: [usuarioId], references: [id])

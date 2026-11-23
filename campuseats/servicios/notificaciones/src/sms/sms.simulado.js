@@ -1,4 +1,4 @@
-// Proveedor gratuito para desarrollo.
+// servicios/notificaciones/src/sms/sms.simulado.js — proveedor gratuito para desarrollo
 export async function enviarSmsSimulado(telefono, mensaje) {
 	console.log('┌──────────────── SMS SIMULADO ────────────────');
 	console.log(`│ Para: ${telefono}`);

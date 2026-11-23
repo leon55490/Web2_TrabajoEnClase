@@ -1,4 +1,4 @@
-// Proveedor real con la API REST de Twilio.
+// servicios/notificaciones/src/sms/sms.twilio.js — proveedor real con la API REST de Twilio
 export async function enviarSmsTwilio(telefono, mensaje) {
 	const cuenta = process.env.TWILIO_ACCOUNT_SID;
 	const token = process.env.TWILIO_AUTH_TOKEN;
