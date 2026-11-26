@@ -350,6 +350,54 @@
           }
         }
       ]
+    },
+    {
+      "name": "Microservicios (Semana 11)",
+      "item": [
+        {
+          "name": "Salud distribuida del sistema (GET /salud en Gateway)",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/salud"
+          }
+        },
+        {
+          "name": "Crear pedido con cobro aprobado (retorna pagoRef)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"items\": [\n    { \"productoId\": 3, \"cantidad\": 1 }\n  ]\n}"
+            },
+            "url": "{{base_url}}/api/pedidos"
+          }
+        },
+        {
+          "name": "Error 402 - Pago rechazado por cupo (> $100.000: 9 almuerzos)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"items\": [\n    { \"productoId\": 1, \"cantidad\": 9 }\n  ]\n}"
+            },
+            "url": "{{base_url}}/api/pedidos"
+          }
+        },
+        {
+          "name": "Error 409 + Compensación Saga (41 empanadas: cobra y reembolsa)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"items\": [\n    { \"productoId\": 4, \"cantidad\": 41 }\n  ]\n}"
+            },
+            "url": "{{base_url}}/api/pedidos"
+          }
+        }
+      ]
     }
   ]
 }

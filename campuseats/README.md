@@ -23,10 +23,29 @@ API REST para el menú, pedidos y reportes de la cafetería universitaria Campus
    npx prisma db seed --config prisma7.config.ts
    ```
 
-4. Inicia el servidor en `http://localhost:4000`:
-   ```powershell
-   npm run dev
-   ```
+4. Levanta los **cuatro procesos** en cuatro terminales distintas (el gateway queda como única puerta pública en `http://localhost:4000`):
+   - **Terminal 1 (`core` en `:4001`)**:
+     ```powershell
+     npm run dev
+     ```
+   - **Terminal 2 (`notificaciones` en `:4002`)**:
+     ```powershell
+     cd servicios/notificaciones
+     npm install
+     npm run dev
+     ```
+   - **Terminal 3 (`pagos` en `:4003`)**:
+     ```powershell
+     cd servicios/pagos
+     npm install
+     npm run dev
+     ```
+   - **Terminal 4 (`gateway` en `:4000`)**:
+     ```powershell
+     cd servicios/gateway
+     npm install
+     npm run dev
+     ```
 
 ## 2. Credenciales del Seed
 
@@ -55,9 +74,9 @@ API REST para el menú, pedidos y reportes de la cafetería universitaria Campus
 | `PATCH /api/pedidos/:id/estado` | `ADMIN` | Cambiar estado del pedido (dispara SMS cuando pasa a `LISTO`) |
 | `GET /api/reportes/ventas-dia` | `ADMIN` | Reporte de ventas del día actual excluyendo cancelados |
 
-## 4. Servicios externos (Semana 9)
+## 4. Servicios externos (Semana 9 → extraídos en Semana 11)
 
-1. **Correo transaccional (`src/services/email.service.js`)**: Usa Nodemailer + Ethereal (`SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`). Se dispara después del `COMMIT` de `crearPedido` sin `await` y con `.catch()`.
+1. **Correo transaccional (`servicios/notificaciones/src/email.service.js`, invocado por `src/clientes/notificaciones.cliente.js`)**: Usa Nodemailer + Ethereal (`SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`). Se dispara después del `COMMIT` de `crearPedido` sin `await`, con timeout de 3 s y con `.catch()`.
 2. **Subida de imágenes (`src/middlewares/subirImagen.js`)**: Usa Multer con nombres UUID en `uploads/productos` (servidas en `/imagenes/productos`), validando MIME (`JPG`, `PNG`, `WebP`) con `415`, tamaño máximo de 2 MB con `413` y campo inesperado con `400`.
 3. **SMS con proveedor intercambiable (`servicios/notificaciones/src/sms/`)**: Selección dinámica por `SMS_PROVEEDOR` (`simulado` o `twilio`) al marcar un pedido como `LISTO`.
 4. **API de terceros (`src/services/tasas.service.js`)**: Consulta `open.er-api.com` con `AbortSignal.timeout(3000)` y degrada con `usd: null` si el servicio externo falla o tarda.
